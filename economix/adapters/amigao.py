@@ -90,9 +90,30 @@ class Adapter(BaseAdapter):
         self.client = make_client(Referer=BASE + "/")
         self.query = json.loads(STATE.read_text(encoding="utf-8")) if STATE.exists() else discover_query()
         self._refreshed = not STATE.exists()
+        self._apply_cep()
+
+    def _apply_cep(self) -> None:
+        """Aplica o CEP do markets.yaml (ex.: Rio Preto). O preco e o estoque mudam por regiao/loja,
+        entao sem isso o site devolve a loja padrao (Maringa)."""
+        cep = str(self.market.extra.get("cep") or "").strip()
+        if not cep:
+            return
+        digits = cep.replace("-", "")
+        r = self.client.get("https://amigao.vtexcommercestable.com.br/api/checkout/pub/regions",
+                            params={"country": "BRA", "postalCode": digits})
+        regions = r.json() if r.status_code == 200 else []
+        if not regions or not regions[0].get("sellers"):
+            raise NeedsHuman(f"O Amigao nao atende o CEP {cep} pelo site; coleta interrompida para nao usar outra regiao.")
+        self._region_id = regions[0]["id"]
+        self._cep = f"{digits[:5]}-{digits[5:]}"
+
+    def _with_cep(self, v: dict) -> dict:
+        if getattr(self, "_region_id", None):
+            v["input"].update({"postalCode": self._cep, "cmsPostalCode": self._cep, "regionId": self._region_id})
+        return v
 
     def _fetch_full(self, term: str, page: int, facets: list | None = None, sort: str | None = None) -> dict | None:
-        v = json.loads(json.dumps(self.query["variables"]))
+        v = self._with_cep(json.loads(json.dumps(self.query["variables"])))
         v["input"].update({"term": term, "page": page})
         if facets is not None:
             v["input"]["selectedFacets"] = facets
@@ -121,7 +142,7 @@ class Adapter(BaseAdapter):
 
     def _collect_catalog(self) -> Iterator[Offer]:
         cep = self.query["variables"]["input"].get("postalCode")
-        self._store = f"site (CEP padrão {cep})" if cep else "site (região padrão)"
+        self._store = (f"CEP {self._cep} ({self.market.extra.get('cidade', '')})".replace(" ()", "") if getattr(self, "_cep", None) else (f"site (CEP padrão {cep})" if cep else "site (região padrão)"))
         self._seen: set = set()
         depts = list(self.market.extra.get("departments") or [])
         # descobre departamentos extras pelos filtros que o proprio site devolve em algumas buscas
@@ -176,7 +197,7 @@ class Adapter(BaseAdapter):
             yield from self._collect_catalog()
             return
         cep = self.query["variables"]["input"].get("postalCode")
-        store = f"site (CEP padrão {cep})" if cep else "site (região padrão)"
+        store = (f"CEP {self._cep}" if getattr(self, "_cep", None) else (f"site (CEP padrão {cep})" if cep else "site (região padrão)"))
         seen: set[str] = set()
         fails = 0
         for term in load_basket()["terms"]:

@@ -3,6 +3,8 @@
 #                  null = ainda nao confirmado. Nunca preencher por suposicao.
 # enabled: so vira true depois que config/flows/<id>.yaml existir e for validado.
 # strategy: api (oficial/autorizada) | ui (automacao de interface)
+# REGIAO: o radar e de Sao Jose do Rio Preto/SP. Toda rede usa o CEP 15015-000 (Centro): preco e estoque mudam por loja.
+#         Rede que nao entrega nesse CEP pelo site fica desligada (enabled: false) com o motivo em notes.
 
 markets:
   atacadao:
@@ -12,6 +14,8 @@ markets:
     adapter: vtex
     web_base: https://www.atacadao.com.br
     crawl: catalog
+    cep: "15015-000"
+    cidade: Rio Preto
     android_package: null
     enabled: true
     notes: "App de ofertas personalizadas. NAO confundir com o app do cartao de credito Atacadao."
@@ -25,6 +29,8 @@ markets:
     adapter: vtex
     web_base: https://www.samsclub.com.br
     crawl: catalog
+    cep: "15015-000"
+    cidade: Rio Preto
     android_package: null
     enabled: true
     notes: "Publicado pela WMB Supermercados do Brasil. Carteira digital, cashback, cupons e ofertas."
@@ -39,6 +45,8 @@ markets:
     crawl: catalog
     departments: [alimentos, bebidas, casa-e-jardim, saude-e-beleza]
     discover_terms: [fralda, racao, pilha, carvao, vela, presente]
+    cep: "15015-000"          # sem CEP o site usa a loja de Maringa/PR (amigao001); Rio Preto = amigao070
+    cidade: Rio Preto
     web_base: https://www.amigao.com
     android_package: com.ibopedtm.appvarejo.csd
     enabled: true
@@ -53,9 +61,11 @@ markets:
     adapter: vtex
     web_base: https://www.supermuffato.com.br
     crawl: catalog
+    cep: "15015-000"
+    cidade: Rio Preto
     android_package: null
-    enabled: true
-    notes: "Ofertas e vouchers exclusivos no ClubeFato, dentro do app."
+    enabled: false
+    notes: "NAO entrega em Rio Preto pelo site (regiao do CEP 15015-000 sem nenhuma loja, verificado 25/11/2026). Ofertas e vouchers exclusivos no ClubeFato, dentro do app."
     sources:
       - https://apps.apple.com/br/app/super-muffato/id1040965567
 
@@ -96,7 +106,9 @@ markets:
     adapter: gpa
     web_base: https://www.paodeacucar.com
     gpa_chain: pa
-    gpa_store_id: 461
+    gpa_store_id: 461         # padrao do site; substituido pela loja que entrega no CEP abaixo
+    cep: "15015-000"          # Rio Preto: lojas 2383 Bady Bassit (1809), 2424 Damha (1830), 2402 Centro (561)
+    cidade: Rio Preto
     crawl: catalog
     departments: [alimentos, bebidas, bebidas-alcoolicas, limpeza, descartaveis, bebe-e-crianca, perfumaria, beleza-e-perfumaria, bazar, petshop, textil, eletro, caras-do-brasil]
     android_package: null
@@ -113,11 +125,13 @@ markets:
     web_base: https://www.extramercado.com.br
     gpa_chain: ex
     gpa_store_id: 483
+    cep: "15015-000"
+    cidade: Rio Preto
     crawl: catalog
     departments: [alimentos, bebidas, bebidas-alcoolicas, limpeza, descartaveis, bebe-e-crianca, perfumaria, beleza-e-perfumaria, bazar, petshop, textil, eletro, caras-do-brasil]
     android_package: null
-    enabled: true
-    notes: "Ofertas personalizadas: resultados podem variar por perfil; registrar como ofertas da conta, nao da loja."
+    enabled: false
+    notes: "NAO entrega em Rio Preto pelo site (consulta de entrega do CEP 15015-000 sem nenhuma opcao, verificado 25/11/2026). Ofertas personalizadas no Clube Extra."
     sources:
       - https://apps.apple.com/BR/app/id1186355193
 

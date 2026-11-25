@@ -103,6 +103,8 @@ class Adapter(BaseAdapter):
         regions = r.json() if r.status_code == 200 else []
         if not regions or not regions[0].get("id"):
             raise NeedsHuman(f"A loja nao retornou regiao para o CEP {self.cep}; coleta interrompida para nao misturar regioes.")
+        if not regions[0].get("sellers"):
+            raise NeedsHuman(f"Nenhuma loja da rede entrega no CEP {self.cep} pelo site.")
         seg = {"regionId": regions[0]["id"], "channel": "1", "countryCode": "BRA", "postalCode": self.cep}
         self.client.cookies.set("vtex_segment", base64.b64encode(json.dumps(seg).encode()).decode())
         cidade = self.market.extra.get("cidade")

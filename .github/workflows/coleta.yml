@@ -52,8 +52,8 @@ jobs:
           path: |
             data/economix.db
             data/state
-          key: economix-db-${{ github.run_id }}
-          restore-keys: economix-db-
+          key: economix-db-sjrp-${{ github.run_id }}
+          restore-keys: economix-db-sjrp-
 
       - name: Coletar
         run: python -m economix collect
@@ -75,7 +75,7 @@ jobs:
           path: |
             data/economix.db
             data/state
-          key: economix-db-${{ github.run_id }}
+          key: economix-db-sjrp-${{ github.run_id }}
 
       - name: Anexar arquivos do painel
         uses: actions/upload-artifact@v4

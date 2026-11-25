@@ -72,6 +72,24 @@ class Adapter(BaseAdapter):
         self.origin = market.web_base.rstrip("/")
         self.delay, self.max_pages = delay, max_pages
         self.client = make_client(Origin=self.origin, Referer=self.origin + "/")
+        self.store_label = f"site (storeId {self.store_id})"
+        cep = str(market.extra.get("cep") or "").replace("-", "").strip()
+        if cep:
+            self._apply_cep(cep)
+
+    def _apply_cep(self, cep: str) -> None:
+        """Escolhe a loja que entrega no CEP, pela mesma consulta de entrega que o site usa.
+        O preco e o estoque mudam por loja; sem isso o site usa a loja padrao (outra cidade)."""
+        r = self.client.get(f"https://api.vendas.gpa.digital/{self.chain}/delivery/ecom/{cep}",
+                            params={"isNal": "false"},
+                            headers={"Accept": "application/json, text/plain, */*"})
+        types = ((r.json().get("content") or {}).get("deliveryTypes") or []) if r.status_code == 200 else []
+        if not types:
+            raise NeedsHuman(f"Nenhuma loja da rede entrega no CEP {cep[:5]}-{cep[5:]} pelo site.")
+        first = types[0]
+        self.store_id = int(first["storeid"])
+        cidade = self.market.extra.get("cidade")
+        self.store_label = f"CEP {cep[:5]}-{cep[5:]}" + (f" ({cidade})" if cidade else "") + f" · loja {first.get('storeName', self.store_id)}"
 
     def collect(self) -> Iterator[Offer]:
         if self.market.extra.get("crawl") == "catalog":
@@ -83,7 +101,7 @@ class Adapter(BaseAdapter):
         """Percorre cada departamento do site pela mesma rota que o site usa nas paginas de categoria."""
         seen: set = set()
         fails = 0
-        store = f"site (storeId {self.store_id})"
+        store = self.store_label
         url = API.format(chain=self.chain).replace("/search/search", "/search/category-page")
         for dept in self.market.extra.get("departments") or []:
             page, pages = 1, 1
@@ -111,7 +129,7 @@ class Adapter(BaseAdapter):
     def _collect_basket(self) -> Iterator[Offer]:
         seen: set[str] = set()
         fails = 0
-        store = f"site (storeId {self.store_id})"
+        store = self.store_label
         for term in load_basket()["terms"]:
             for page in range(1, self.max_pages + 1):
                 body = {"terms": term, "page": page, "sortBy": "relevance", "resultsPerPage": 21,

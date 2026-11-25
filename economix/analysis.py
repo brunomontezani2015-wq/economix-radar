@@ -74,7 +74,8 @@ class Comparison:
 MAX_PLAUSIBLE_SPREAD = 150.0  # acima disso quase sempre e embalagem diferente (pack x unidade)
 
 
-def compare(db: Database, min_markets: int = 2, include_suspect: bool = False) -> list[Comparison]:
+def compare(db: Database, min_markets: int = 2, include_suspect: bool = False,
+            only: set[str] | None = None) -> list[Comparison]:
     """Cruza produtos pela chave (EAN; na falta, nome+marca+tamanho normalizados) E pela quantidade
     de unidades da embalagem lida do nome (lojas reutilizam o EAN da unidade em packs).
     Casamento aproximado NAO e feito de proposito: so comparamos o que e certamente o mesmo produto.
@@ -82,6 +83,8 @@ def compare(db: Database, min_markets: int = 2, include_suspect: bool = False) -
     from .matching import Item, group_items
     items = []
     for market_id, rows in db.latest_by_market().items():
+        if only is not None and market_id not in only:
+            continue
         for r in rows:
             price = _eff(r)
             if price is not None:

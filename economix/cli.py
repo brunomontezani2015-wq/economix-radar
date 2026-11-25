@@ -134,7 +134,7 @@ def oportunidades(enviar: bool = False, sempre: bool = False, limite: int = 10):
     from .report import brl
     db = Database(settings.db_path)
     markets = load_markets()
-    drops = [c for mid in markets for c in changes(db, mid) if c.kind == "caiu"]
+    drops = [c for mid, m in markets.items() if m.enabled for c in changes(db, mid) if c.kind == "caiu"]
     drops.sort(key=lambda c: c.pct or 0)
     text = format_drops(drops, markets, limite, datetime.now())
     out = settings.data_dir / "reports"

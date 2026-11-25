@@ -36,10 +36,14 @@ def main() -> None:
             {"label": "Input", "value": "data/economix.db (última execução de cada rede)"},
             {"label": "Exportado em", "value": now}]
 
+    # So redes ativas: uma rede desligada (ex.: nao entrega em Rio Preto) pode ter coletas antigas de
+    # outra regiao no banco, e elas nunca devem aparecer no painel.
+    active = {mid for mid, m in markets.items() if m.enabled}
     last = {r["market_id"]: r for r in db.execute(
-        "SELECT * FROM runs WHERE id IN (SELECT MAX(id) FROM runs WHERE status IN ('ok','partial') GROUP BY market_id)")}
+        "SELECT * FROM runs WHERE id IN (SELECT MAX(id) FROM runs WHERE status IN ('ok','partial') GROUP BY market_id)")
+        if r["market_id"] in active}
     latest_any = {r["market_id"]: r for r in db.execute(
-        "SELECT * FROM runs WHERE id IN (SELECT MAX(id) FROM runs GROUP BY market_id)")}
+        "SELECT * FROM runs WHERE id IN (SELECT MAX(id) FROM runs GROUP BY market_id)") if r["market_id"] in active}
 
     # 1) situacao por rede (todas as 10, inclusive as sem coleta)
     status_rows = []
@@ -54,7 +58,8 @@ def main() -> None:
         elif la and la["status"] == "running":
             situacao = "Coletando"
         elif not m.enabled:
-            situacao = "Bloqueado" if "NAO contornar" in m.notes else "Pendente"
+            situacao = ("Fora de Rio Preto" if "NAO entrega em Rio Preto" in m.notes
+                        else "Bloqueado" if "NAO contornar" in m.notes else "Pendente")
         else:
             situacao = "Falhou"
         status_rows.append({
@@ -106,7 +111,7 @@ def main() -> None:
     # 3) comparacao: EAN, ou nome com regras conservadoras (economix/matching.py)
     edb = Database(ROOT / "data" / "economix.db")
     comp = []
-    for c in compare(edb):
+    for c in compare(edb, only=active):
         name = lambda m: markets[m].name if m in markets else m  # noqa: E731
         lo, hi = min(c.prices.values()), max(c.prices.values())
         row = {"id": c.product_key, "produto": c.product, "redes": len(c.prices),
@@ -120,7 +125,7 @@ def main() -> None:
 
     # 4) quedas de preco nas ultimas 24h: ultima coleta x coleta de ~24h atras (ou a mais antiga da janela)
     quedas = []
-    for mid in markets:
+    for mid in active:
         for ch in changes(edb, mid, since_hours=24):
             if ch.kind != "caiu":
                 continue
@@ -139,9 +144,13 @@ def _note(mid: str, m) -> str | None:
         "assai": "Site bloqueia acesso automatizado às ofertas. Coleta só pelo app.",
         "max_atacadista": "Ofertas só em encartes (imagem) por loja.",
         "tonin": "Site oficial não confirmado.",
-        "amigao": "Preço Clube Amigão não aparece sem login.",
-        "atacadao": "Site não mostra preço 'de/por'.",
+        "amigao": "Loja de Rio Preto (CEP 15015-000). Preço Clube Amigão não aparece sem login.",
+        "atacadao": "Loja de Rio Preto (CEP 15015-000). Site não mostra preço 'de/por'.",
+        "sams_club": "Lojas que entregam no CEP 15015-000 (Rio Preto).",
+        "pao_de_acucar": "Loja 2383 Bady Bassit, que entrega no CEP 15015-000 (Rio Preto).",
         "americanas": "Disponibilidade para o CEP 15015-000 (Rio Preto). Marketplace: vendedor indicado nas condições.",
+        "super_muffato": "Não entrega em Rio Preto pelo site.",
+        "extra": "Não entrega em Rio Preto pelo site.",
     }
     return notes.get(mid)
 
