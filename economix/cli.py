@@ -89,8 +89,42 @@ def buscar(termo: str, limite: int = 30):
         typer.echo(f"{names.get(mid, mid):14} {price:>11}{promo}  {r['product'][:60]}")
 
 
+PAINEL_URL = "https://claude.ai/artifact/LYJC4oATQSYptRUsJ6abYx"
+
+
+def format_drops(drops, markets, limite, when) -> str:
+    """Mensagem curta e espacada para o Telegram: resumo por rede + as `limite` maiores quedas, uma por bloco."""
+    from collections import Counter
+    from html import escape
+
+    from .report import brl
+    name = lambda mid: markets[mid].name if mid in markets else mid  # noqa: E731
+    out = [f"<b>📉 Economix Radar</b>", f"<i>Quedas de preço · {when:%d/%m às %H:%M}</i>", ""]
+    if not drops:
+        out.append("Nenhum produto baixou de preço desde a coleta anterior.")
+        return "\n".join(out)
+    por_rede = Counter(name(c.market_id) for c in drops)
+    out.append(f"<b>{len(drops)} produto(s)</b> baixaram de preço:")
+    out.append(" · ".join(f"{r} {n}" for r, n in por_rede.most_common()))
+    out += ["", f"<b>🔥 As {min(limite, len(drops))} maiores quedas</b>", ""]
+    for c in drops[:limite]:
+        prod = c.product if len(c.product) <= 70 else c.product[:68].rstrip() + "…"
+        out.append(f"<b>{escape(prod, quote=False)}</b>")
+        out.append(f"🏪 {escape(name(c.market_id))}  ·  <s>{brl(c.before_cents)}</s> → <b>{brl(c.after_cents)}</b>")
+        eco = brl(c.before_cents - c.after_cents)
+        alerta = "  ⚠️ conferir no site" if (c.pct or 0) < -50 else ""
+        out.append(f"↓ {abs(c.pct):.0f}%  ·  economia de {eco}{alerta}")
+        out.append("")
+    if len(drops) > limite:
+        out.append(f"➕ Mais {len(drops) - limite} no painel:")
+    else:
+        out.append("Ver no painel:")
+    out.append(PAINEL_URL)
+    return "\n".join(out)
+
+
 @app.command()
-def oportunidades(enviar: bool = False, sempre: bool = False, limite: int = 40):
+def oportunidades(enviar: bool = False, sempre: bool = False, limite: int = 10):
     """Produtos que baixaram de preco desde a coleta anterior (por rede). Salva em data/reports/.
     Com --enviar, so manda ao Telegram se houver queda (use --sempre para mandar mesmo sem queda)."""
     from datetime import date, datetime
@@ -102,17 +136,7 @@ def oportunidades(enviar: bool = False, sempre: bool = False, limite: int = 40):
     markets = load_markets()
     drops = [c for mid in markets for c in changes(db, mid) if c.kind == "caiu"]
     drops.sort(key=lambda c: c.pct or 0)
-    lines = [f"<b>Economix Radar — Baixaram de preço ({datetime.now():%d/%m %H:%M})</b>",
-             f"{len(drops)} produto(s) baixaram de preço desde a coleta anterior."]
-    for c in drops[:limite]:
-        lines.append(f"🔻 <i>{escape(markets[c.market_id].name)}</i> {escape(c.product, quote=False)}: "
-                     f"{brl(c.before_cents)} → <b>{brl(c.after_cents)}</b> ({c.pct:.0f}%)"
-                     + (" ⚠ conferir no site" if (c.pct or 0) < -50 else ""))
-    if len(drops) > limite:
-        lines.append(f"… e mais {len(drops) - limite}. Veja o painel.")
-    if not drops:
-        lines.append("Nenhuma queda (é preciso ter duas coletas de cada rede).")
-    text = "\n".join(lines)
+    text = format_drops(drops, markets, limite, datetime.now())
     out = settings.data_dir / "reports"
     out.mkdir(parents=True, exist_ok=True)
     (out / f"oportunidades_{datetime.now():%Y-%m-%d_%H%M}.txt").write_text(text, encoding="utf-8")
