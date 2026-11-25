@@ -23,7 +23,13 @@ Python package `economix/` (run with `.venv\Scripts\python.exe -m economix <cmd>
 - `buscar "<termo>"`: price lookup by name/brand/EAN across all markets, cheapest first.
 - `oportunidades [--enviar]`: products whose price dropped since the previous run (saved to data/reports/).
 
-## Routine
+## Routine (cloud)
+Production runs on GitHub Actions: repo brunomontezani2015-wq/economix-radar, `.github/workflows/coleta.yml`, hourly 07–21 BRT.
+Check with `gh run list -R brunomontezani2015-wq/economix-radar -w coleta.yml`; trigger with `gh workflow run coleta.yml`.
+Dashboard JSONs = artifact "painel" of each run; Claude task `economix-atualizar-painel` (:45) uploads them to the panel.
+The local Windows task below is DISABLED (kept as fallback): re-enable only if the cloud stops working.
+
+## Routine (local fallback)
 Windows Task Scheduler task "Economix Radar - coleta diaria" runs `scripts/daily.ps1` EVERY HOUR from 08:00
 (IgnoreNew if a run is still going): collect → `scripts/export_dashboard.py` (panel "quedas" = last 24h) →
 `oportunidades --enviar` (drops since the previous run; Telegram only when there is at least one drop). Log: `data/logs/daily_<date>.log`.
