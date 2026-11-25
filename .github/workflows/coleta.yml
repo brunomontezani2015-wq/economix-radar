@@ -2,6 +2,7 @@ name: Coleta de precos
 
 # De hora em hora, das 07:00 as 21:00 de Brasilia (UTC-3 => 10:00 a 00:00 UTC).
 # O GitHub pode atrasar execucoes agendadas em alguns minutos em horarios de pico.
+# Para rodar na hora: aba Actions > Coleta de precos > Run workflow.
 on:
   schedule:
     - cron: "0 10-23 * * *"
