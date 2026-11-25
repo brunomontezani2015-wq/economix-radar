@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import time
 import urllib.parse as up
 from typing import Iterator
@@ -20,6 +21,7 @@ from ..parsing import parse_size
 from .base import BaseAdapter, NeedsHuman
 from .webcommon import cents, load_basket, make_client, polite_request
 
+log = logging.getLogger("economix")
 BASE = "https://www.amigao.com"
 STATE = settings.data_dir / "state" / "amigao.json"
 
@@ -89,9 +91,13 @@ class Adapter(BaseAdapter):
         self.query = json.loads(STATE.read_text(encoding="utf-8")) if STATE.exists() else discover_query()
         self._refreshed = not STATE.exists()
 
-    def _fetch(self, term: str, page: int) -> dict | None:
+    def _fetch_full(self, term: str, page: int, facets: list | None = None, sort: str | None = None) -> dict | None:
         v = json.loads(json.dumps(self.query["variables"]))
         v["input"].update({"term": term, "page": page})
+        if facets is not None:
+            v["input"]["selectedFacets"] = facets
+        if sort:
+            v["input"]["sort"] = sort
         url = f"{BASE}/api/graphql?" + up.urlencode({
             "operationName": "GetProductsQuery", "operationHash": self.query["hash"],
             "variables": json.dumps(v, separators=(",", ":"))}, quote_via=up.quote)
@@ -99,12 +105,76 @@ class Adapter(BaseAdapter):
         if r is None:
             return None
         js = r.json()
-        if js.get("errors") or not (js.get("data") or {}).get("getProducts"):
+        data = ((js.get("data") or {}).get("getProducts") or {}).get("data")
+        if js.get("errors") or not data:
             return None
         self._last_raw = r.content
-        return js["data"]["getProducts"]["data"]["products"]
+        return data
+
+    def _fetch(self, term: str, page: int) -> dict | None:
+        d = self._fetch_full(term, page)
+        return d["products"] if d else None
+
+    # ---------- modo catalogo ----------
+    PER_PAGE = 20
+    MAX_PAGES = 49   # o site deixa de responder a partir da pagina 50 (~1.000 itens por consulta)
+
+    def _collect_catalog(self) -> Iterator[Offer]:
+        cep = self.query["variables"]["input"].get("postalCode")
+        self._store = f"site (CEP padrão {cep})" if cep else "site (região padrão)"
+        self._seen: set = set()
+        depts = list(self.market.extra.get("departments") or [])
+        # descobre departamentos extras pelos filtros que o proprio site devolve em algumas buscas
+        for term in self.market.extra.get("discover_terms") or []:
+            d = self._fetch_full(term, 1, facets=[])
+            for f in (d or {}).get("facets") or []:
+                if f.get("key") == "category-1":
+                    depts += [x["value"] for x in f.get("values", []) if x["value"] not in depts]
+        log.info("amigao: departamentos %s", depts)
+        for dept in depts:
+            yield from self._crawl([{"key": "category-1", "value": dept}], level=1)
+
+    def _crawl(self, facets: list, level: int) -> Iterator[Offer]:
+        first = self._fetch_full("", 1, facets=facets)
+        if first is None:
+            return
+        total = (first["products"].get("pageInfo") or {}).get("totalCount") or 0
+        limit = self.PER_PAGE * self.MAX_PAGES
+        if total > limit and level < 4:
+            sub = next((f for f in first.get("facets") or [] if f.get("key") == f"category-{level + 1}"), None)
+            if sub and sub.get("values"):
+                for val in sub["values"]:
+                    yield from self._crawl(facets + [{"key": f"category-{level + 1}", "value": val["value"]}], level + 1)
+                return
+        label = "_".join(f["value"] for f in facets)
+        yield from self._emit(first["products"], f"{label}_p1")
+        sorts = [None] if total <= limit else [None, "price_asc", "price_desc"]
+        if total > limit:
+            log.warning("amigao: %s tem %s itens, acima do limite de paginacao; lido em parte", label, total)
+        for sort in sorts:
+            pages = min(self.MAX_PAGES, -(-total // self.PER_PAGE))
+            for page in range(2 if sort is None else 1, pages + 1):
+                d = self._fetch_full("", page, facets=facets, sort=sort)
+                if d is None:
+                    break
+                yield from self._emit(d["products"], f"{label}_{sort or 'score'}_p{page}")
+
+    def _emit(self, prods: dict, label: str) -> Iterator[Offer]:
+        ev = str(self.evidence.save_json(self._last_raw, label))
+        for o in offers_from_edges(self.market.id, prods.get("edges", []), ev, self._store):
+            key = json.loads(o.raw_text)["sku"]
+            if key in self._seen:
+                continue
+            self._seen.add(key)
+            yield o
 
     def collect(self) -> Iterator[Offer]:
+        if self.market.extra.get("crawl") == "catalog":
+            # garante uma consulta valida (redescobre o hash se o site mudou)
+            if self._fetch_full("", 1, facets=[]) is None and not self._refreshed:
+                self.query, self._refreshed = discover_query(), True
+            yield from self._collect_catalog()
+            return
         cep = self.query["variables"]["input"].get("postalCode")
         store = f"site (CEP padrão {cep})" if cep else "site (região padrão)"
         seen: set[str] = set()

@@ -74,6 +74,41 @@ class Adapter(BaseAdapter):
         self.client = make_client(Origin=self.origin, Referer=self.origin + "/")
 
     def collect(self) -> Iterator[Offer]:
+        if self.market.extra.get("crawl") == "catalog":
+            yield from self._collect_catalog()
+            return
+        yield from self._collect_basket()
+
+    def _collect_catalog(self) -> Iterator[Offer]:
+        """Percorre cada departamento do site pela mesma rota que o site usa nas paginas de categoria."""
+        seen: set = set()
+        fails = 0
+        store = f"site (storeId {self.store_id})"
+        url = API.format(chain=self.chain).replace("/search/search", "/search/category-page")
+        for dept in self.market.extra.get("departments") or []:
+            page, pages = 1, 1
+            while page <= pages:
+                body = {"partner": "linx", "page": page, "resultsPerPage": 100, "multiCategory": dept,
+                        "sortBy": "relevance", "department": "ecom", "storeId": self.store_id,
+                        "customerPlus": True, "filters": []}
+                r = polite_request(self.client, "POST", url, json=body)
+                if r is None:
+                    fails += 1
+                    if fails >= 5:
+                        raise NeedsHuman("API GPA recusando requisicoes (5 falhas).")
+                    break
+                js = r.json()
+                pages = int(js.get("totalPages") or 0)
+                ev = str(self.evidence.save_json(r.content, f"{dept}_p{page}"))
+                for o in offers_from_search(self.market.id, js.get("products", []), ev, store, self.origin):
+                    key = json.loads(o.raw_text)["id"]
+                    if key in seen:
+                        continue
+                    seen.add(key)
+                    yield o
+                page += 1
+
+    def _collect_basket(self) -> Iterator[Offer]:
         seen: set[str] = set()
         fails = 0
         store = f"site (storeId {self.store_id})"

@@ -11,6 +11,7 @@ markets:
     strategy: api
     adapter: vtex
     web_base: https://www.atacadao.com.br
+    crawl: catalog
     android_package: null
     enabled: true
     notes: "App de ofertas personalizadas. NAO confundir com o app do cartao de credito Atacadao."
@@ -23,6 +24,7 @@ markets:
     strategy: api
     adapter: vtex
     web_base: https://www.samsclub.com.br
+    crawl: catalog
     android_package: null
     enabled: true
     notes: "Publicado pela WMB Supermercados do Brasil. Carteira digital, cashback, cupons e ofertas."
@@ -34,6 +36,9 @@ markets:
     app_name: Amigão (Clube Amigão)
     strategy: api
     adapter: amigao
+    crawl: catalog
+    departments: [alimentos, bebidas, casa-e-jardim, saude-e-beleza]
+    discover_terms: [fralda, racao, pilha, carvao, vela, presente]
     web_base: https://www.amigao.com
     android_package: com.ibopedtm.appvarejo.csd
     enabled: true
@@ -47,6 +52,7 @@ markets:
     strategy: api
     adapter: vtex
     web_base: https://www.supermuffato.com.br
+    crawl: catalog
     android_package: null
     enabled: true
     notes: "Ofertas e vouchers exclusivos no ClubeFato, dentro do app."
@@ -91,6 +97,8 @@ markets:
     web_base: https://www.paodeacucar.com
     gpa_chain: pa
     gpa_store_id: 461
+    crawl: catalog
+    departments: [alimentos, bebidas, bebidas-alcoolicas, limpeza, descartaveis, bebe-e-crianca, perfumaria, beleza-e-perfumaria, bazar, petshop, textil, eletro, caras-do-brasil]
     android_package: null
     enabled: true
     notes: "Pontos Stix."
@@ -105,6 +113,8 @@ markets:
     web_base: https://www.extramercado.com.br
     gpa_chain: ex
     gpa_store_id: 483
+    crawl: catalog
+    departments: [alimentos, bebidas, bebidas-alcoolicas, limpeza, descartaveis, bebe-e-crianca, perfumaria, beleza-e-perfumaria, bazar, petshop, textil, eletro, caras-do-brasil]
     android_package: null
     enabled: true
     notes: "Ofertas personalizadas: resultados podem variar por perfil; registrar como ofertas da conta, nao da loja."
@@ -117,6 +127,9 @@ markets:
     strategy: api
     adapter: vtex
     web_base: https://www.americanas.com.br
+    crawl: catalog
+    departments: ["Alimentos e bebidas", "Limpeza"]
+    run_hours: [7]          # catalogo grande: varrido 1x por dia (rodada das 07h)
     cep: "15015-000"          # Centro, Sao Jose do Rio Preto/SP (validado no ViaCEP em 24/11/2026)
     cidade: Rio Preto
     android_package: null

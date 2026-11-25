@@ -82,18 +82,26 @@ def main() -> None:
         if len(g.members) >= 2 and (max(prices) - min(prices)) / min(prices) * 100 <= MAX_PLAUSIBLE_SPREAD:
             for it in g.members.values():
                 grupo_de[it.ref] = g.key
-    offers = []
+    # Um arquivo por rede, em colunas (compacto): o catalogo completo passa de 100 mil produtos.
+    # O painel junta todos num so conjunto ("ofertas") e calcula o desconto ao abrir.
+    cols = ["id", "grupo", "produto", "marca", "ean", "preco_normal", "preco_promo", "condicoes"]
+    n_offers = 0
+    for old in OUT.glob("of_*.json"):
+        old.unlink()
     for mid, rows in obs.items():
         name = markets[mid].name if mid in markets else mid
+        data = []
         for o in rows:
-            reg, pro = o["regular_price_cents"], o["promo_price_cents"]
-            offers.append({
-                "id": f"{mid}-{o['id']}", "grupo": grupo_de.get(f"{mid}-{o['id']}"), "rede": name, "produto": o["product"], "marca": o["brand"], "ean": o["ean"],
-                "preco_normal": reais(reg), "preco_promo": reais(pro),
-                "desconto_pct": round((1 - pro / reg) * 100, 1) if (pro and reg) else None,
-                "condicoes": o["conditions"], "loja": o["store"],
-            })
-    _write("ofertas", offers, meta)
+            cond = o["conditions"]
+            if cond and len(cond) > 120:
+                cond = cond[:118].rstrip() + "…"
+            data.append([f"{mid}-{o['id']}", grupo_de.get(f"{mid}-{o['id']}"), o["product"], o["brand"], o["ean"],
+                         reais(o["regular_price_cents"]), reais(o["promo_price_cents"]), cond])
+        n_offers += len(data)
+        loja = rows[0]["store"] if rows else None
+        (OUT / f"of_{mid}.json").write_text(json.dumps(
+            {"rede": name, "loja": loja, "cols": cols, "rows": data, "meta": meta},
+            ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
 
     # 3) comparacao: EAN, ou nome com regras conservadoras (economix/matching.py)
     edb = Database(ROOT / "data" / "economix.db")
@@ -122,7 +130,7 @@ def main() -> None:
                            "alerta": "Queda acima de 50%: conferir no site" if -ch.pct > 50 else None})
     quedas.sort(key=lambda r: -r["queda_pct"])
     _write("quedas", quedas, meta)
-    print({"coleta": len(status_rows), "ofertas": len(offers), "comparacao": len(comp), "quedas": len(quedas)})
+    print({"coleta": len(status_rows), "ofertas": n_offers, "comparacao": len(comp), "quedas": len(quedas)})
 
 
 def _note(mid: str, m) -> str | None:
@@ -139,8 +147,8 @@ def _note(mid: str, m) -> str | None:
 
 
 def _write(name: str, rows: list, meta: list) -> None:
-    (OUT / f"{name}.json").write_text(json.dumps({"rows": rows, "meta": meta}, ensure_ascii=False),
-                                      encoding="utf-8")
+    (OUT / f"{name}.json").write_text(json.dumps({"rows": rows, "meta": meta}, ensure_ascii=False,
+                                                 separators=(",", ":")), encoding="utf-8")
 
 
 if __name__ == "__main__":

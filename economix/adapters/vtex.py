@@ -16,10 +16,15 @@ from urllib.parse import quote
 import httpx
 import yaml
 
+import logging
+
 from ..config import settings
 from ..models import Offer
-from ..parsing import parse_size
+from ..parsing import normalize_name, parse_size
 from .base import BaseAdapter, NeedsHuman
+from .webcommon import polite_request
+
+log = logging.getLogger("economix")
 
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) EconomixRadar/0.1"
 
@@ -104,37 +109,95 @@ class Adapter(BaseAdapter):
         self.store_label = f"CEP {self.cep[:5]}-{self.cep[5:]}" + (f" ({cidade})" if cidade else "")
 
     def collect(self) -> Iterator[Offer]:
+        self._failures = 0
+        self._seen: set[str] = set()
+        if self.market.extra.get("crawl") == "catalog":
+            yield from self._collect_catalog()
+        else:
+            yield from self._collect_basket()
+
+    # ---------- modo cesta (termos de busca) ----------
+    def _collect_basket(self) -> Iterator[Offer]:
         per = int(self.basket.get("per_term", 50))
-        seen: set[str] = set()
-        failures = 0
         for term in self.basket["terms"]:
             r = self._get("/api/catalog_system/pub/products/search", {"ft": term, "_from": 0, "_to": per - 1})
             if r is None:
-                failures += 1
-                if failures >= 3:
-                    raise NeedsHuman("API do catalogo recusando requisicoes (3 falhas). Coleta interrompida.")
                 continue
-            ev = str(self.evidence.save_json(r.content, term))
-            for o in offers_from_products(self.market.id, r.json(), ev, self.store_label):
-                key = o.ean or o.product
-                if key in seen:
-                    continue
-                seen.add(key)
-                yield o
-            time.sleep(self.delay)
+            yield from self._emit(r, term)
+
+    # ---------- modo catalogo (todas as categorias) ----------
+    PAGE = 50          # maximo de itens por consulta na VTEX
+    MAX_FROM = 2500    # a VTEX nao pagina alem disto numa mesma consulta
+
+    def _collect_catalog(self) -> Iterator[Offer]:
+        r = self._get("/api/catalog_system/pub/category/tree/3", {})
+        if r is None:
+            raise NeedsHuman("Nao foi possivel ler a arvore de categorias do site.")
+        tree = r.json()
+        wanted = self.market.extra.get("departments")
+        if wanted:
+            want = {normalize_name(w) for w in wanted}
+            tree = [d for d in tree if normalize_name(d.get("name", "")) in want]
+            missing = want - {normalize_name(d.get("name", "")) for d in tree}
+            if missing:
+                log.warning("%s: departamentos nao encontrados no site: %s", self.market.id, sorted(missing))
+        self.truncated: list[str] = []
+        for dept in tree:
+            yield from self._crawl(dept, [dept["id"]])
+        if self.truncated:
+            log.warning("%s: categorias maiores que o limite da VTEX (lidas em parte): %s",
+                        self.market.id, "; ".join(self.truncated[:20]))
+
+    def _crawl(self, node: dict, path: list) -> Iterator[Offer]:
+        fq = "C:/" + "/".join(str(p) for p in path) + "/"
+        r = self._get("/api/catalog_system/pub/products/search", {"fq": fq, "_from": 0, "_to": self.PAGE - 1})
+        if r is None:
+            return
+        total = _total(r)
+        children = node.get("children") or []
+        if total > self.MAX_FROM and children:
+            for ch in children:                       # categoria grande: desce para as subcategorias
+                yield from self._crawl(ch, path + [ch["id"]])
+            return
+        yield from self._emit(r, f"{node.get('name', '')}_0")
+        orders = [None] if total <= self.MAX_FROM else ["OrderByPriceASC", "OrderByPriceDESC"]
+        if total > self.MAX_FROM:
+            self.truncated.append(f"{node.get('name')} ({total})")
+        for order in orders:
+            start = self.PAGE if order is None else 0
+            while start < min(total, self.MAX_FROM):
+                params = {"fq": fq, "_from": start, "_to": start + self.PAGE - 1}
+                if order:
+                    params["O"] = order
+                rr = self._get("/api/catalog_system/pub/products/search", params)
+                if rr is None:
+                    break
+                yield from self._emit(rr, f"{node.get('name', '')}_{start}")
+                start += self.PAGE
+
+    # ---------- comum ----------
+    def _emit(self, r: httpx.Response, label: str) -> Iterator[Offer]:
+        ev = str(self.evidence.save_json(r.content, label))
+        for o in offers_from_products(self.market.id, r.json(), ev, self.store_label):
+            key = json.loads(o.raw_text).get("itemId") or o.ean or o.product
+            if key in self._seen:
+                continue
+            self._seen.add(key)
+            yield o
 
     def _get(self, path: str, params: dict) -> httpx.Response | None:
-        for attempt in range(3):
-            try:
-                # VTEX/WAF de algumas lojas rejeita '+' como espaco (400); usar %20.
-                qs = "&".join(f"{k}={quote(str(v), safe='')}" for k, v in params.items())
-                r = self.client.get(f"{self.base}{path}?{qs}")
-            except httpx.HTTPError:
-                time.sleep(3 * (attempt + 1))
-                continue
-            if r.status_code in (200, 206) and r.headers.get("content-type", "").startswith("application/json"):
-                return r
-            if r.status_code in (403, 429):  # bloqueio/limite: nao insistir
-                return None
-            time.sleep(3 * (attempt + 1))
-        return None
+        # VTEX/WAF de algumas lojas rejeita '+' como espaco (400); usar %20.
+        qs = "&".join(f"{k}={quote(str(v), safe='')}" for k, v in params.items())
+        r = polite_request(self.client, "GET", f"{self.base}{path}" + (f"?{qs}" if qs else ""))
+        if r is None:
+            self._failures = getattr(self, "_failures", 0) + 1
+            if self._failures >= 5:
+                raise NeedsHuman("Site recusando consultas (5 falhas). Coleta interrompida para nao insistir.")
+        return r
+
+
+def _total(r: httpx.Response) -> int:
+    """Total de produtos da consulta, informado pela VTEX no cabecalho 'resources: 0-49/1234'."""
+    import re
+    m = re.search(r"/(\d+)", r.headers.get("resources", ""))
+    return int(m.group(1)) if m else len(r.json())

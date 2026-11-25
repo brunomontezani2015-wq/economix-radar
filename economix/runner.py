@@ -43,8 +43,23 @@ def collect_all(db: Database, only: list[str] | None = None, parallel: int = 8) 
     ~1 requisicao/segundo, porque o limite de ritmo fica dentro de cada adapter."""
     from concurrent.futures import ThreadPoolExecutor
 
-    mids = [mid for mid, m in load_markets().items()
-            if (mid in only if only else m.enabled)]
+    import os
+    from datetime import datetime
+    hour = datetime.now().hour
+    force = os.environ.get("ECONOMIX_RUN_ALL") == "1"
+    mids = []
+    for mid, m in load_markets().items():
+        if only:
+            if mid in only:
+                mids.append(mid)
+            continue
+        if not m.enabled:
+            continue
+        hours = m.extra.get("run_hours")
+        if hours and hour not in hours and not force:
+            log.info("%s: fora do horario desta rede (%s), pulando", mid, hours)
+            continue
+        mids.append(mid)
     if parallel <= 1 or len(mids) <= 1:
         return {mid: collect_market(db, mid) for mid in mids}
     with ThreadPoolExecutor(max_workers=min(parallel, len(mids))) as pool:
