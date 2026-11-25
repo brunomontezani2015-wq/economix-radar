@@ -1,39 +1,132 @@
-# Cesta monitorada: termos buscados em cada mercado. A comparacao entre redes cruza por EAN.
-# Ajuste livremente; cada termo traz ate `per_term` itens por mercado.
+# Cesta monitorada: termos buscados em cada rede. A comparacao entre redes cruza por EAN ou nome.
+# Cada termo traz ate `per_term` itens por rede. Organizado por secao do mercado.
 per_term: 50
 terms:
+  # Mercearia basica
   - arroz 5kg
+  - arroz 1kg
   - feijao carioca 1kg
   - feijao preto 1kg
   - acucar cristal 5kg
   - acucar refinado 1kg
   - cafe 500g
+  - cafe capsula
   - oleo de soja 900ml
-  - leite integral 1l
+  - azeite de oliva
+  - farinha de trigo 1kg
+  - farinha de mandioca
+  - fuba
+  - macarrao espaguete 500g
+  - macarrao instantaneo
+  - molho de tomate
+  - extrato de tomate
+  - sal refinado 1kg
+  - tempero
+  - maionese
+  - ketchup
+  - atum
+  - sardinha
+  - milho verde lata
+  - ervilha lata
+  - leite em po
   - leite condensado
   - creme de leite
-  - farinha de trigo 1kg
-  - macarrao espaguete 500g
-  - molho de tomate
-  - sal refinado 1kg
+  - aveia
+  - granola
+  - cereal matinal
+  - achocolatado
+  # Doces, biscoitos e snacks
+  - chocolate barra
+  - chocolate lacta
+  - chocolate nestle
+  - chocolate garoto
+  - bombom
+  - biscoito recheado
+  - biscoito cream cracker
+  - biscoito maisena
+  - wafer
+  - bolacha
+  - salgadinho
+  - batata palha
+  - pipoca microondas
+  - bala
+  - goma de mascar
+  - doce de leite
+  - gelatina
+  - mistura para bolo
+  # Bebidas
+  - refrigerante 2l
+  - refrigerante lata
+  - suco
+  - agua mineral
+  - agua com gas
+  - cerveja lata 350ml
+  - cerveja long neck
+  - energetico
+  - cha
+  - vinho
+  # Laticinios e frios
+  - leite integral 1l
+  - leite desnatado 1l
+  - iogurte
+  - bebida lactea
+  - requeijao
+  - queijo mussarela
+  - queijo prato
+  - presunto
+  - peito de peru
+  - mortadela
+  - salame
   - margarina 500g
   - manteiga
-  - queijo mussarela
-  - presunto
   - ovos
+  # Carnes e congelados
   - frango congelado
+  - peito de frango
   - carne moida
   - linguica toscana
+  - salsicha
+  - hamburguer
+  - nuggets
+  - lasanha congelada
+  - pizza congelada
+  - pao de queijo
+  - batata congelada
+  - sorvete
+  # Padaria
+  - pao de forma
+  - bisnaguinha
+  - torrada
+  # Higiene e beleza
   - papel higienico
-  - sabao em po
-  - detergente liquido
-  - amaciante
-  - agua sanitaria
   - creme dental
+  - escova de dente
+  - enxaguante bucal
   - sabonete
+  - sabonete liquido
   - shampoo
-  - refrigerante 2l
-  - cerveja lata 350ml
-  - achocolatado
-  - biscoito recheado
-  - iogurte
+  - condicionador
+  - desodorante
+  - absorvente
+  - fralda
+  - lenco umedecido
+  - aparelho de barbear
+  - protetor solar
+  - algodao
+  # Limpeza
+  - sabao em po
+  - sabao liquido
+  - amaciante
+  - detergente liquido
+  - agua sanitaria
+  - desinfetante
+  - limpador multiuso
+  - esponja
+  - saco de lixo
+  - papel toalha
+  - inseticida
+  - alcool 70
+  # Pet
+  - racao cachorro
+  - racao gato
+  - areia gato

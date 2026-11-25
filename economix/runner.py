@@ -38,12 +38,15 @@ def collect_market(db: Database, market_id: str, **adapter_kw) -> str:
         return f"✖ erro: {type(e).__name__}: {e}"
 
 
-def collect_all(db: Database, only: list[str] | None = None) -> dict[str, str]:
-    status = {}
-    for mid, m in load_markets().items():
-        if only and mid not in only:
-            continue
-        if not only and not m.enabled:
-            continue
-        status[mid] = collect_market(db, mid)
-    return status
+def collect_all(db: Database, only: list[str] | None = None, parallel: int = 8) -> dict[str, str]:
+    """Coleta as redes em paralelo (uma thread por rede). Cada site continua recebendo no maximo
+    ~1 requisicao/segundo, porque o limite de ritmo fica dentro de cada adapter."""
+    from concurrent.futures import ThreadPoolExecutor
+
+    mids = [mid for mid, m in load_markets().items()
+            if (mid in only if only else m.enabled)]
+    if parallel <= 1 or len(mids) <= 1:
+        return {mid: collect_market(db, mid) for mid in mids}
+    with ThreadPoolExecutor(max_workers=min(parallel, len(mids))) as pool:
+        futures = {mid: pool.submit(collect_market, db, mid) for mid in mids}
+        return {mid: f.result() for mid, f in futures.items()}

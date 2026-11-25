@@ -64,7 +64,7 @@ class Database:
 
     @contextmanager
     def conn(self) -> Iterator[sqlite3.Connection]:
-        c = sqlite3.connect(self.path)
+        c = sqlite3.connect(self.path, timeout=60)  # coletas em paralelo: espera a vez de gravar
         c.row_factory = sqlite3.Row
         try:
             yield c
