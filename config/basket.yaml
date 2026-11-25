@@ -1,0 +1,39 @@
+# Cesta monitorada: termos buscados em cada mercado. A comparacao entre redes cruza por EAN.
+# Ajuste livremente; cada termo traz ate `per_term` itens por mercado.
+per_term: 50
+terms:
+  - arroz 5kg
+  - feijao carioca 1kg
+  - feijao preto 1kg
+  - acucar cristal 5kg
+  - acucar refinado 1kg
+  - cafe 500g
+  - oleo de soja 900ml
+  - leite integral 1l
+  - leite condensado
+  - creme de leite
+  - farinha de trigo 1kg
+  - macarrao espaguete 500g
+  - molho de tomate
+  - sal refinado 1kg
+  - margarina 500g
+  - manteiga
+  - queijo mussarela
+  - presunto
+  - ovos
+  - frango congelado
+  - carne moida
+  - linguica toscana
+  - papel higienico
+  - sabao em po
+  - detergente liquido
+  - amaciante
+  - agua sanitaria
+  - creme dental
+  - sabonete
+  - shampoo
+  - refrigerante 2l
+  - cerveja lata 350ml
+  - achocolatado
+  - biscoito recheado
+  - iogurte

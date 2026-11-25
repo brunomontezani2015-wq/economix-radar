@@ -1,0 +1,87 @@
+name: Coleta de precos
+
+# De hora em hora, das 07:00 as 21:00 de Brasilia (UTC-3 => 10:00 a 00:00 UTC).
+# O GitHub pode atrasar execucoes agendadas em alguns minutos em horarios de pico.
+on:
+  schedule:
+    - cron: "0 10-23 * * *"
+    - cron: "0 0 * * *"
+  workflow_dispatch: {}
+
+concurrency:
+  group: coleta
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  coleta:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    env:
+      TZ: America/Sao_Paulo
+      PYTHONIOENCODING: utf-8
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-cloud.txt
+
+      - name: Instalar dependencias
+        run: |
+          pip install -r requirements-cloud.txt
+          python -m playwright install --with-deps chromium
+
+      # Banco das ultimas ~26h (necessario para calcular as quedas) vem da execucao anterior.
+      - name: Restaurar banco
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            data/economix.db
+            data/state
+          key: economix-db-${{ github.run_id }}
+          restore-keys: economix-db-
+
+      - name: Coletar
+        run: python -m economix collect
+
+      - name: Quedas de preco -> Telegram (so se houver)
+        run: |
+          if [ -n "$TELEGRAM_BOT_TOKEN" ]; then python -m economix oportunidades --enviar; else python -m economix oportunidades; fi
+
+      - name: Exportar arquivos do painel
+        run: python scripts/export_dashboard.py
+
+      - name: Podar banco (manter 26h)
+        run: python scripts/prune_db.py 26
+
+      - name: Salvar banco
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            data/economix.db
+            data/state
+          key: economix-db-${{ github.run_id }}
+
+      - name: Anexar arquivos do painel
+        uses: actions/upload-artifact@v4
+        with:
+          name: painel
+          path: data/dashboard/*.json
+          retention-days: 3
+
+      - name: Anexar evidencias
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: evidencias
+          path: data/evidence
+          retention-days: 7
+          if-no-files-found: ignore

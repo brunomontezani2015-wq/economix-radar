@@ -1,0 +1,136 @@
+# Registro de mercados monitorados.
+# android_package: SOMENTE valores confirmados (fonte oficial ou `economix discover` no dispositivo).
+#                  null = ainda nao confirmado. Nunca preencher por suposicao.
+# enabled: so vira true depois que config/flows/<id>.yaml existir e for validado.
+# strategy: api (oficial/autorizada) | ui (automacao de interface)
+
+markets:
+  atacadao:
+    name: Atacadão
+    app_name: Meu Atacadão
+    strategy: api
+    adapter: vtex
+    web_base: https://www.atacadao.com.br
+    android_package: null
+    enabled: true
+    notes: "App de ofertas personalizadas. NAO confundir com o app do cartao de credito Atacadao."
+    sources:
+      - https://gironews.com/canais-trade/atacado-cash-carry/investindo-em-experiencia-do-cliente-atacadao-lanca-aplicativo-com-ofertas-e-descontos/
+
+  sams_club:
+    name: Sam's Club
+    app_name: Sam's Club Brasil
+    strategy: api
+    adapter: vtex
+    web_base: https://www.samsclub.com.br
+    android_package: null
+    enabled: true
+    notes: "Publicado pela WMB Supermercados do Brasil. Carteira digital, cashback, cupons e ofertas."
+    sources:
+      - https://apps.apple.com/BR/app/id1324408392
+
+  amigao:
+    name: Amigão
+    app_name: Amigão (Clube Amigão)
+    strategy: api
+    adapter: amigao
+    web_base: https://www.amigao.com
+    android_package: com.ibopedtm.appvarejo.csd
+    enabled: true
+    notes: "Clube Amigao dentro do app. Site (VTEX FastStore): valor do preco clube nao aparece sem login."
+    sources:
+      - https://play.google.com/store/apps/details?id=com.ibopedtm.appvarejo.csd
+
+  super_muffato:
+    name: Super Muffato
+    app_name: Super Muffato (ClubeFato)
+    strategy: api
+    adapter: vtex
+    web_base: https://www.supermuffato.com.br
+    android_package: null
+    enabled: true
+    notes: "Ofertas e vouchers exclusivos no ClubeFato, dentro do app."
+    sources:
+      - https://apps.apple.com/br/app/super-muffato/id1040965567
+
+  max_atacadista:
+    name: Max Atacadista
+    app_name: Max Atacadista
+    strategy: ui
+    android_package: null
+    enabled: false
+    notes: "Irmaos Muffato. Lojas no interior paulista (Catanduva, Presidente Prudente, Sao Jose do Rio Preto). Selecionar loja da regiao."
+    sources:
+      - https://apps.apple.com/BR/app/id1503207064
+
+  assai:
+    name: Assaí
+    app_name: Meu Assaí
+    strategy: ui
+    android_package: null
+    enabled: false
+    notes: "Ofertas exclusivas precisam ser ativadas pelo usuario. Coletar apenas leitura; nao ativar ofertas automaticamente."
+    sources:
+      - https://apps.apple.com/br/app/meu-assa%C3%AD/id979078703
+
+  carrefour:
+    name: Carrefour
+    app_name: Meu Carrefour
+    strategy: ui
+    android_package: null
+    enabled: false
+    notes: "Descontos resgatados valem informando CPF no caixa. Coletar apenas leitura. Site (mercado.carrefour.com.br) exige verificacao humana Cloudflare para clientes automatizados (24/11/2026): NAO contornar; usar o app."
+    sources:
+      - https://mercadoeconsumo.com.br/08/04/2024/supermercados/carrefour-lanca-programa-de-cashback-disponivel-no-app-da-marca/
+
+  pao_de_acucar:
+    name: Pão de Açúcar
+    app_name: Pão de Açúcar Mais
+    strategy: api
+    adapter: gpa
+    web_base: https://www.paodeacucar.com
+    gpa_chain: pa
+    gpa_store_id: 461
+    android_package: null
+    enabled: true
+    notes: "Pontos Stix."
+    sources:
+      - https://apps.apple.com/BR/app/id1041092380
+
+  extra:
+    name: Extra
+    app_name: Extra Mercado (Clube Extra)
+    strategy: api
+    adapter: gpa
+    web_base: https://www.extramercado.com.br
+    gpa_chain: ex
+    gpa_store_id: 483
+    android_package: null
+    enabled: true
+    notes: "Ofertas personalizadas: resultados podem variar por perfil; registrar como ofertas da conta, nao da loja."
+    sources:
+      - https://apps.apple.com/BR/app/id1186355193
+
+  americanas:
+    name: Americanas
+    app_name: Americanas
+    strategy: api
+    adapter: vtex
+    web_base: https://www.americanas.com.br
+    cep: "15015-000"          # Centro, Sao Jose do Rio Preto/SP (validado no ViaCEP em 24/11/2026)
+    cidade: Rio Preto
+    android_package: null
+    enabled: true
+    notes: "Marketplace (VTEX): o vendedor de cada item e registrado em 'condicoes' quando ha mais de um. robots.txt nao bloqueia /api (verificado 24/11/2026)."
+    sources:
+      - https://www.americanas.com.br
+
+  tonin:
+    name: Tonin
+    app_name: Meu Tonin
+    strategy: ui
+    android_package: null
+    enabled: false
+    notes: "Compras online, Cliente Fidelidade e ofertas."
+    sources:
+      - https://apps.apple.com/br/app/meu-tonin/id1605646969
