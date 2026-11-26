@@ -59,6 +59,13 @@ def collect_all(db: Database, only: list[str] | None = None, parallel: int = 8) 
         if hours and hour not in hours and not force:
             log.info("%s: fora do horario desta rede (%s), pulando", mid, hours)
             continue
+        # "uma vez a cada N horas": nao depende da hora exata em que o agendador do GitHub disparou
+        gap = m.extra.get("min_interval_hours")
+        if gap and not force:
+            age = db.hours_since_last_ok(mid)
+            if age is not None and age < float(gap):
+                log.info("%s: coletada ha %.1fh (intervalo minimo %sh), pulando", mid, age, gap)
+                continue
         mids.append(mid)
     if parallel <= 1 or len(mids) <= 1:
         return {mid: collect_market(db, mid) for mid in mids}

@@ -104,6 +104,15 @@ class Database:
                              "ORDER BY id DESC LIMIT 2", (market_id,)).fetchall()
         return [r["id"] for r in rows]
 
+    def hours_since_last_ok(self, market_id: str) -> float | None:
+        """Horas desde o fim da ultima coleta boa (ok/partial) da rede; None se nunca coletou."""
+        with self.conn() as c:
+            row = c.execute("SELECT finished_at FROM runs WHERE market_id=? AND status IN ('ok','partial') "
+                            "AND finished_at IS NOT NULL ORDER BY id DESC LIMIT 1", (market_id,)).fetchone()
+        if not row:
+            return None
+        return (datetime.now(timezone.utc) - datetime.fromisoformat(row["finished_at"])).total_seconds() / 3600
+
     def run_pair_since(self, market_id: str, hours: float) -> list[int]:
         """[ultima coleta, coleta-base]: base = mais recente com fim <= agora-hours; senao a mais antiga da janela."""
         from datetime import timedelta

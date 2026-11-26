@@ -143,7 +143,7 @@ markets:
     web_base: https://www.americanas.com.br
     crawl: catalog
     departments: ["Alimentos e bebidas", "Limpeza"]
-    run_hours: [7]          # catalogo grande: varrido 1x por dia (rodada das 07h)
+    min_interval_hours: 20  # catalogo grande: varrido 1x por dia (primeira rodada do dia)
     cep: "15015-000"          # Centro, Sao Jose do Rio Preto/SP (validado no ViaCEP em 24/11/2026)
     cidade: Rio Preto
     android_package: null
